@@ -36,7 +36,7 @@ func genSizeBasicField(g *protogen.GeneratedFile, field *protogen.Field, vname s
 	//pointer = field.Desc.HasPresence()
 	switch field.Desc.Kind() {
 	case protoreflect.BoolKind:
-		g.P("if ", vname, "")
+		g.P("if ", vname, "{")
 		g.P("size += ", protowire.SizeTag(field.Desc.Number()), "// size += protowire.SizeTag(,", field.Desc.Number(), ")")
 		genFieldSizeFunc(g, field, vname, "size")
 		g.P("}")
