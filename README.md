@@ -167,13 +167,13 @@ ok      benchpb 28.027s
 
 字段类型:
 | ID | Name   | Used For                                                 |                                         |
-|----+--------+----------------------------------------------------------+-----------------------------------------|
-|  0 | VARINT | int32, int64, uint32, uint64, sint32, sint64, bool, enum | varint 编码                             |
-|  1 | I64    | fixed64, sfixed64, double                                | 定长8个字节                             |
-|  2 | LEN    | string, bytes, embedded messages, packed repeated fields | 先跟一个varint编码的长度. 后面是payload |
-|  3 | SGROUP | group start (deprecated)                                 |                                         |
-|  4 | EGROUP | group end (deprecated)                                   |                                         |
-|  5 | I32    | fixed32, sfixed32, float                                 | 定长4个字节                             |
+|----|--------|----------------------------------------------------------|-----------------------------------------|
+| 0  | VARINT | int32, int64, uint32, uint64, sint32, sint64, bool, enum | varint 编码                             |
+| 1  | I64    | fixed64, sfixed64, double                                | 定长8个字节                             |
+| 2  | LEN    | string, bytes, embedded messages, packed repeated fields | 先跟一个varint编码的长度. 后面是payload |
+| 3  | SGROUP | group start (deprecated)                                 |                                         |
+| 4  | EGROUP | group end (deprecated)                                   |                                         |
+| 5  | I32    | fixed32, sfixed32, float                                 | 定长4个字节                             |
 
 bool,enum 都使用 varint. 
 
