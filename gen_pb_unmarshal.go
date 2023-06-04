@@ -412,16 +412,17 @@ func genUnmarshalListField(g *protogen.GeneratedFile, m *protogen.Message, field
 			if x.`, field.GoName, ` == nil {
 				x.`, field.GoName, ` = make(`, goTyp, `, 0, 2)
 			}
-			sub := 0
-			for sub < len(buf) {
-				v, cnt := protowire.ConsumeString(buf[sub:])
-				if cnt < 1 {
-					err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid item value")
-					return
-				}
-				sub += cnt
-				x.`, field.GoName, ` = append(x.`, field.GoName, `,  v)
-			}`)
+			x.`, field.GoName, ` = append(x.`, field.GoName, `,  string(buf))`)
+		// `	sub := 0
+		// 	for sub < len(buf) {
+		// 		v, cnt := protowire.ConsumeString(buf[sub:])
+		// 		if cnt < 1 {
+		// 			err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid item value")
+		// 			return
+		// 		}
+		// 		sub += cnt
+		// 		x.`, field.GoName, ` = append(x.`, field.GoName, `,  v)
+		// 	}`)
 	case protoreflect.BytesKind:
 		g.P(`if typ != protowire.BytesType {
 				err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid repeated tag value")
@@ -436,16 +437,17 @@ func genUnmarshalListField(g *protogen.GeneratedFile, m *protogen.Message, field
 			if x.`, field.GoName, ` == nil {
 				x.`, field.GoName, ` = make(`, goTyp, `, 0, 2)
 			}
-			sub := 0
-			for sub < len(buf) {
-				v, cnt := protowire.ConsumeBytes(buf[sub:])
-				if cnt < 1 {
-					err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid item value")
-					return
-				}
-				sub += cnt
-				x.`, field.GoName, ` = append(x.`, field.GoName, `,  v)
-			}`)
+			x.`, field.GoName, ` = append(x.`, field.GoName, `,  buf)`)
+		// sub := 0
+		// for sub < len(buf) {
+		// 	v, cnt := protowire.ConsumeBytes(buf[sub:])
+		// 	if cnt < 1 {
+		// 		err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid item value")
+		// 		return
+		// 	}
+		// 	sub += cnt
+		// 	x.`, field.GoName, ` = append(x.`, field.GoName, `,  v)
+		// }`)
 	case protoreflect.MessageKind:
 		g.P(`if typ != protowire.BytesType {
 				err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid repeated tag value")
@@ -460,21 +462,27 @@ func genUnmarshalListField(g *protogen.GeneratedFile, m *protogen.Message, field
 			if x.`, field.GoName, ` == nil {
 				x.`, field.GoName, ` = make(`, goTyp, `, 0, 2)
 			}
-			sub := 0
-			for sub < len(buf) {
-				v, cnt := protowire.ConsumeBytes(buf[sub:])
-				if cnt < 1 {
-					err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid item value")
-					return
-				}
-				sub += cnt
-				item := &`, strings.TrimPrefix(goTyp, "[]*"), `{}
-				err = item.UnmarshalObject(v)
-				if err != nil {
-					return 
-				}
-				x.`, field.GoName, ` = append(x.`, field.GoName, `,  item)
-			}`)
+			item := &`, strings.TrimPrefix(goTyp, "[]*"), `{}
+			err = item.UnmarshalObject(buf)
+			if err != nil {
+				return 
+			}
+			x.`, field.GoName, ` = append(x.`, field.GoName, `,  item)`)
+		// `	sub := 0
+		// 	for sub < len(buf) {
+		// 		v, cnt := protowire.ConsumeBytes(buf[sub:])
+		// 		if cnt < 1 {
+		// 			err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid item value")
+		// 			return
+		// 		}
+		// 		sub += cnt
+		// 		item := &`, strings.TrimPrefix(goTyp, "[]*"), `{}
+		// 		err = item.UnmarshalObject(v)
+		// 		if err != nil {
+		// 			return
+		// 		}
+		// 		x.`, field.GoName, ` = append(x.`, field.GoName, `,  item)
+		// 	}`)
 	case protoreflect.GroupKind:
 		// unsupport
 	}
@@ -612,7 +620,7 @@ func genUnmarshalBasicField(g *protogen.GeneratedFile, m *protogen.Message, fiel
 		}
 
 		g.P(`v, cnt := protowire.ConsumeBytes(data[index:])
-			if cnt < 1 {
+			if v == nil {
 				err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid len value")
 				return
 			}
@@ -628,7 +636,7 @@ func genUnmarshalBasicField(g *protogen.GeneratedFile, m *protogen.Message, fiel
 		}
 
 		g.P(`v, cnt := protowire.ConsumeBytes(data[index:])
-			if cnt < 1 {
+			if v == nil {
 				err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid message value")
 				return
 			}
@@ -749,7 +757,7 @@ func genUnmarshalMapBasicField(g *protogen.GeneratedFile, m *protogen.Message, f
 				return
 			}
 			sindex += scnt`)
-		g.P(vname, "= math.Float32frombits(v)")
+		g.P(vname, "= math.Float64frombits(v)")
 	case protoreflect.StringKind:
 		if cfg.debug {
 			g.P(`if typ != protowire.BytesType {
@@ -774,7 +782,7 @@ func genUnmarshalMapBasicField(g *protogen.GeneratedFile, m *protogen.Message, f
 		}
 
 		g.P(`v, scnt := protowire.ConsumeBytes(buf[sindex:])
-			if scnt < 1 {
+			if v == nil {
 				err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid len value")
 				return
 			}
@@ -790,7 +798,7 @@ func genUnmarshalMapBasicField(g *protogen.GeneratedFile, m *protogen.Message, f
 		}
 
 		g.P(`v, scnt := protowire.ConsumeBytes(buf[sindex:])
-			if scnt < 1 {
+			if v == nil {
 				err = errors.New("invlaid field `, m.GoIdent, ".", field.GoName, ` id:`, field.Desc.Number(), `. invalid message value")
 				return
 			}
