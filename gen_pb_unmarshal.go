@@ -15,7 +15,6 @@ func genMessageUnmarshal(g *protogen.GeneratedFile, f *protogen.File, m *protoge
 		return
 	}
 	g.P(`index := 0
-	ignoreGroup := 0
 	for index < len(data) {
 		num, typ, cnt := protowire.ConsumeTag(data[index:])
 		if num == 0 {
@@ -24,73 +23,18 @@ func genMessageUnmarshal(g *protogen.GeneratedFile, f *protogen.File, m *protoge
 		}
 
 		index += cnt
-		// ignore group
-		if ignoreGroup > 0 {
-			switch typ {
-			case protowire.VarintType:
-				_, cnt := protowire.ConsumeVarint(data[index:])
-				if cnt < 1 {
-					err = protowire.ParseError(cnt)
-					return
-				}
-				index += cnt
-			case protowire.Fixed32Type:
-				index += 4
-			case protowire.Fixed64Type:
-				index += 8
-			case protowire.BytesType:
-				v, cnt := protowire.ConsumeBytes(data[index:])
-				if v == nil {
-					if cnt < 0 {
-						err = protowire.ParseError(cnt)
-					} else {
-						err = errors.New("invalid data")
-					}
-					return
-				}
-				index += cnt
-			case protowire.StartGroupType:
-				ignoreGroup++
-			case protowire.EndGroupType:
-				ignoreGroup--
-			}
-			continue
-		}
 		switch num {`)
 	for _, field := range m.Fields {
 		g.P("case ", field.Desc.Number(), ":")
 		genUnmarshalField(g, m, field)
 	}
 	g.P("default: // skip fields")
-	g.P(`	switch typ {
-			case protowire.VarintType:
-				_, cnt := protowire.ConsumeVarint(data[index:])
-				if cnt < 1 {
-					err = protowire.ParseError(cnt)
-					return
-				}
-				index += cnt
-			case protowire.Fixed32Type:
-				index += 4
-			case protowire.Fixed64Type:
-				index += 8
-			case protowire.BytesType:
-				v, cnt := protowire.ConsumeBytes(data[index:])
-				if v == nil {
-					if cnt < 0 {
-						err = protowire.ParseError(cnt)
-					} else {
-						err = errors.New("invalid data")
-					}
-					return
-				}
-				index += cnt
-			case protowire.StartGroupType:
-				ignoreGroup++
-			case protowire.EndGroupType:
-				ignoreGroup--
-			}}`)
-
+	g.P(`cnt = protowire.ConsumeFieldValue(num, typ, data[index:])`)
+	g.P("if cnt < 0 {")
+	g.P("return protowire.ParseError(cnt)")
+	g.P("}")
+	g.P("index += cnt")
+	g.P("}")
 	g.P("}")
 	g.P()
 }
