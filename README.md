@@ -63,13 +63,27 @@ message Example {
 }
 ```
 ``` go
-
 type Example struct {
-	Filed int32 `json:"filed,omitempty" db:"filed"`
+	Filed int32 `json:"filed,omitempty"`
 }
 
 func (x *Example) Reset() {
 	*x = Example{}
+}
+
+// MarshalObject marshal data to []byte
+func (x *Example) MarshalObject() (data []byte, err error) {
+	data = make([]byte, 0, x.MarshalSize())
+	return x.MarshalObjectTo(data)
+}
+
+// MarshalSize calc marshal data need space
+func (x *Example) MarshalSize() (size int) {
+	if x.Filed != 0 {
+		// 1 = protowire.SizeTag(1)
+		size += 1 + protowire.SizeVarint(uint64(x.Filed))
+	}
+	return
 }
 
 // MarshalObjectTo marshal data to []byte
@@ -83,16 +97,9 @@ func (x *Example) MarshalObjectTo(buf []byte) (data []byte, err error) {
 	return
 }
 
-// MarshalObject marshal data to []byte
-func (x *Example) MarshalObject() (data []byte, err error) {
-	data = make([]byte, 0, x.MarshalSize())
-	return x.MarshalObjectTo(data)
-}
-
 // UnmarshalObject unmarshal data from []byte
 func (x *Example) UnmarshalObject(data []byte) (err error) {
 	index := 0
-	ignoreGroup := 0
 	for index < len(data) {
 		num, typ, cnt := protowire.ConsumeTag(data[index:])
 		if num == 0 {
@@ -101,40 +108,43 @@ func (x *Example) UnmarshalObject(data []byte) (err error) {
 		}
 
 		index += cnt
-		/// other code ...
 		switch num {
 		case 1:
-			if typ != protowire.VarintType { // 这个条件判断就是 GOPB_GEN_DEBUG 加的.
-				err = errors.New("invlaid field Example.Filed id:1. not varint type")
-				return
-			}
 			v, cnt := protowire.ConsumeVarint(data[index:])
 			if cnt < 1 {
-				err = errors.New("invlaid field Example.Filed id:1. invalid varint value")
+				err = errors.New("parse Example.Filed ID:1 : invalid varint value")
 				return
 			}
 			index += cnt
 			x.Filed = int32(v)
 		default: // skip fields
-			/// other code ...
+			cnt = protowire.ConsumeFieldValue(num, typ, data[index:])
+			if cnt < 0 {
+				return protowire.ParseError(cnt)
+			}
+			index += cnt
 		}
 	}
 
 	return
 }
 
-// MarshalSize calc marshal data need space
-func (x *Example) MarshalSize() (size int) {
-	if x.Filed != 0 {
-		size += 1 // size += protowire.SizeTag(,1)
-		size += protowire.SizeVarint(uint64(x.Filed))
-	}
-	return
-}
-
 func (x *Example) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 	enc.AddInt32("Filed", x.Filed)
 	return nil
+}
+
+type ZapArrayExample []*Example
+
+func (x ZapArrayExample) MarshalLogArray(ae zapcore.ArrayEncoder) error {
+	for _, v := range x {
+		ae.AppendObject(v)
+	}
+	return nil
+}
+
+func LogArrayExample(name string, v []*Example) zap.Field {
+	return zap.Array(name, ZapArrayExample(v))
 }
 
 ```
@@ -145,66 +155,85 @@ func (x *Example) MarshalLogObject(enc zapcore.ObjectEncoder) error {
 
 与 google.golang.org/protobuf/ 相比
 ``` shell
-➜  benchpb git:(main) ✗ go test -bench=. -benchmem
+➜  benchpb git:(main) go test -bench=. -benchmem
 goos: darwin
 goarch: amd64
 pkg: github.com/aggronmagi/benchpb
 cpu: VirtualApple @ 2.50GHz
-BenchmarkVS/complex-google-marshal-10         	   53272	     21991 ns/op	   11456 B/op	     351 allocs/op
-BenchmarkVS/complex-gopb-marshal-10           	  290721	      3825 ns/op	    1408 B/op	       1 allocs/op
-BenchmarkVS/complex-google-unmarshal-10       	   58266	     20423 ns/op	    8672 B/op	     343 allocs/op
-BenchmarkVS/complex-gopb-unmarshal-10         	  187006	      6365 ns/op	    6952 B/op	     108 allocs/op
-BenchmarkVS/basic_type-google-marshal-10      	 3151597	       380.3 ns/op	      96 B/op	       1 allocs/op
-BenchmarkVS/basic_type-gopb-marshal-10        	 9059457	       130.3 ns/op	      96 B/op	       1 allocs/op
-BenchmarkVS/basic_type-google-unmarshal-10    	 2441830	       492.9 ns/op	     960 B/op	       4 allocs/op
-BenchmarkVS/basic_type-gopb-unmarshal-10      	 3327951	       364.1 ns/op	     920 B/op	       4 allocs/op
-BenchmarkVS/repeated-google-marshal-10        	 1555779	       810.2 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVS/repeated-gopb-marshal-10          	 3056652	       384.2 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVS/repeated-google-unmarshal-10      	  591796	      1954 ns/op	    1848 B/op	      49 allocs/op
-BenchmarkVS/repeated-gopb-unmarshal-10        	  959810	      1219 ns/op	    1640 B/op	      33 allocs/op
-BenchmarkVS/map-int-google-marshal-10         	  136380	      8776 ns/op	    5328 B/op	     137 allocs/op
-BenchmarkVS/map-int-gopb-marshal-10           	  774550	      1506 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVS/map-int-google-unmarshal-10       	  177134	      6842 ns/op	    4168 B/op	     114 allocs/op
-BenchmarkVS/map-int-gopb-unmarshal-10         	  505020	      2292 ns/op	    3656 B/op	      38 allocs/op
-BenchmarkVS/map-all-google-marshal-10         	   96702	     12118 ns/op	    5712 B/op	     215 allocs/op
-BenchmarkVS/map-all-gopb-marshal-10           	  595708	      1971 ns/op	     640 B/op	       1 allocs/op
-BenchmarkVS/map-all-google-unmarshal-10       	  109795	     10941 ns/op	    4376 B/op	     179 allocs/op
-BenchmarkVS/map-all-gopb-unmarshal-10         	  410346	      2827 ns/op	    3416 B/op	      36 allocs/op
+BenchmarkVS/complex-google-marshal-10         	   51793	     22461 ns/op	   12096 B/op	     351 allocs/op
+BenchmarkVS/complex-gopb-marshal-10           	  269382	      4151 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkVS/complex-google-unmarshal-10       	   52182	     22996 ns/op	   10136 B/op	     391 allocs/op
+BenchmarkVS/complex-gopb-unmarshal-10         	  131690	      7820 ns/op	    8152 B/op	     151 allocs/op
+BenchmarkVS/basic_type-google-marshal-10      	 2844948	       416.2 ns/op	      96 B/op	       1 allocs/op
+BenchmarkVS/basic_type-gopb-marshal-10        	 8264270	       142.3 ns/op	      96 B/op	       1 allocs/op
+BenchmarkVS/basic_type-google-unmarshal-10    	 1866696	       636.9 ns/op	    1472 B/op	       4 allocs/op
+BenchmarkVS/basic_type-gopb-unmarshal-10      	 2653176	       455.9 ns/op	    1304 B/op	       4 allocs/op
+BenchmarkVS/repeated-google-marshal-10        	 1479296	       807.4 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVS/repeated-gopb-marshal-10          	 3024024	       394.0 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVS/repeated-google-unmarshal-10      	  558592	      2106 ns/op	    2360 B/op	      49 allocs/op
+BenchmarkVS/repeated-gopb-unmarshal-10        	  870282	      1354 ns/op	    2024 B/op	      33 allocs/op
+BenchmarkVS/nopack-google-marshal-10          	 1401404	       835.7 ns/op	     416 B/op	       1 allocs/op
+BenchmarkVS/nopack-gopb-marshal-10            	 3143082	       376.9 ns/op	     416 B/op	       1 allocs/op
+BenchmarkVS/nopack-google-unmarshal-10        	  448196	      2664 ns/op	    2360 B/op	      49 allocs/op
+BenchmarkVS/nopack-gopb-unmarshal-10          	  593708	      1849 ns/op	    2104 B/op	      44 allocs/op
+BenchmarkVS/map-int-google-marshal-10         	  136328	      8729 ns/op	    5328 B/op	     137 allocs/op
+BenchmarkVS/map-int-gopb-marshal-10           	  763930	      1522 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVS/map-int-google-unmarshal-10       	  176167	      7034 ns/op	    4680 B/op	     114 allocs/op
+BenchmarkVS/map-int-gopb-unmarshal-10         	  456044	      2490 ns/op	    4040 B/op	      38 allocs/op
+BenchmarkVS/map-all-google-marshal-10         	   96744	     12281 ns/op	    5712 B/op	     215 allocs/op
+BenchmarkVS/map-all-gopb-marshal-10           	  575503	      2013 ns/op	     640 B/op	       1 allocs/op
+BenchmarkVS/map-all-google-unmarshal-10       	  103428	     11695 ns/op	    4888 B/op	     179 allocs/op
+BenchmarkVS/map-all-gopb-unmarshal-10         	  371188	      3055 ns/op	    3800 B/op	      36 allocs/op
 PASS
-ok  	github.com/aggronmagi/benchpb	28.022s
+ok  	github.com/aggronmagi/benchpb	34.338s
 ```
 
 与gogo/prorobuf相比
 
 ``` shell
+➜  gogofaster git:(main) go test -bench=. -benchmem
 goos: darwin
 goarch: amd64
 pkg: github.com/aggronmagi/benchpb/gogofaster
 cpu: VirtualApple @ 2.50GHz
-BenchmarkVS/complex-gogofaster-marshal-10         	  237554	      4324 ns/op	    1736 B/op	       8 allocs/op
-BenchmarkVS/complex-gopb-marshal-10               	  307136	      3768 ns/op	    1408 B/op	       1 allocs/op
-BenchmarkVS/complex-gogofaster-unmarshal-10       	  214299	      5616 ns/op	    6760 B/op	     103 allocs/op
-BenchmarkVS/complex-gopb-unmarshal-10             	  192345	      6174 ns/op	    6952 B/op	     108 allocs/op
-BenchmarkVS/basic_type-gogofaster-marshal-10      	 7614111	       156.0 ns/op	      96 B/op	       1 allocs/op
-BenchmarkVS/basic_type-gopb-marshal-10            	 9148363	       129.6 ns/op	      96 B/op	       1 allocs/op
-BenchmarkVS/basic_type-gogofaster-unmarshal-10    	 3830631	       314.5 ns/op	     920 B/op	       4 allocs/op
-BenchmarkVS/basic_type-gopb-unmarshal-10          	 3586162	       342.4 ns/op	     920 B/op	       4 allocs/op
-BenchmarkVS/repeated-gogofaster-marshal-10        	 2141361	       549.4 ns/op	     680 B/op	       8 allocs/op
-BenchmarkVS/repeated-gopb-marshal-10              	 3180798	       372.8 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVS/repeated-gogofaster-unmarshal-10      	 1000000	      1126 ns/op	    1464 B/op	      28 allocs/op
-BenchmarkVS/repeated-gopb-unmarshal-10            	  983776	      1182 ns/op	    1640 B/op	      33 allocs/op
-BenchmarkVS/map-int-gogofaster-marshal-10         	  734912	      1613 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVS/map-int-gopb-marshal-10               	  794096	      1490 ns/op	     352 B/op	       1 allocs/op
-BenchmarkVS/map-int-gogofaster-unmarshal-10       	  587643	      2014 ns/op	    3656 B/op	      38 allocs/op
-BenchmarkVS/map-int-gopb-unmarshal-10             	  524802	      2182 ns/op	    3656 B/op	      38 allocs/op
-BenchmarkVS/map-all-gogofaster-marshal-10         	  536385	      2204 ns/op	     640 B/op	       1 allocs/op
-BenchmarkVS/map-all-gopb-marshal-10               	  581611	      1966 ns/op	     640 B/op	       1 allocs/op
-BenchmarkVS/map-all-gogofaster-unmarshal-10       	  479342	      2481 ns/op	    3416 B/op	      36 allocs/op
-BenchmarkVS/map-all-gopb-unmarshal-10             	  419162	      2777 ns/op	    3416 B/op	      36 allocs/op
+BenchmarkVS/complex-gogofaster-marshal-10         	  220010	      4675 ns/op	    2376 B/op	       8 allocs/op
+BenchmarkVS/complex-gopb-marshal-10               	  253090	      4072 ns/op	    2048 B/op	       1 allocs/op
+BenchmarkVS/complex-gogofaster-unmarshal-10       	  161184	      7109 ns/op	    8000 B/op	     150 allocs/op
+BenchmarkVS/complex-gopb-unmarshal-10             	  135082	      7820 ns/op	    8152 B/op	     151 allocs/op
+BenchmarkVS/basic_type-gogofaster-marshal-10      	 7020572	       183.1 ns/op	      96 B/op	       1 allocs/op
+BenchmarkVS/basic_type-gopb-marshal-10            	 7500072	       157.8 ns/op	      96 B/op	       1 allocs/op
+BenchmarkVS/basic_type-gogofaster-unmarshal-10    	 2423949	       504.6 ns/op	    1304 B/op	       4 allocs/op
+BenchmarkVS/basic_type-gopb-unmarshal-10          	 2634120	       455.3 ns/op	    1304 B/op	       4 allocs/op
+BenchmarkVS/repeated-gogofaster-marshal-10        	 1942646	       556.4 ns/op	     680 B/op	       8 allocs/op
+BenchmarkVS/repeated-gopb-marshal-10              	 3070996	       384.9 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVS/repeated-gogofaster-unmarshal-10      	  963336	      1242 ns/op	    1848 B/op	      28 allocs/op
+BenchmarkVS/repeated-gopb-unmarshal-10            	  939012	      1265 ns/op	    2024 B/op	      33 allocs/op
+BenchmarkVS/nopack-gogofaster-marshal-10          	 2694494	       447.0 ns/op	     416 B/op	       1 allocs/op
+BenchmarkVS/nopack-gopb-marshal-10                	 3267100	       364.2 ns/op	     416 B/op	       1 allocs/op
+BenchmarkVS/nopack-gogofaster-unmarshal-10        	  678048	      1725 ns/op	    2136 B/op	      48 allocs/op
+BenchmarkVS/nopack-gopb-unmarshal-10              	  686800	      1738 ns/op	    2104 B/op	      44 allocs/op
+BenchmarkVS/map-int-gogofaster-marshal-10         	  734241	      1610 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVS/map-int-gopb-marshal-10               	  804480	      1517 ns/op	     352 B/op	       1 allocs/op
+BenchmarkVS/map-int-gogofaster-unmarshal-10       	  540970	      2165 ns/op	    4040 B/op	      38 allocs/op
+BenchmarkVS/map-int-gopb-unmarshal-10             	  521365	      2253 ns/op	    4040 B/op	      38 allocs/op
+BenchmarkVS/map-all-gogofaster-marshal-10         	  536992	      2204 ns/op	     640 B/op	       1 allocs/op
+BenchmarkVS/map-all-gopb-marshal-10               	  598638	      1971 ns/op	     640 B/op	       1 allocs/op
+BenchmarkVS/map-all-gogofaster-unmarshal-10       	  428917	      2603 ns/op	    3800 B/op	      36 allocs/op
+BenchmarkVS/map-all-gopb-unmarshal-10             	  405924	      2840 ns/op	    3800 B/op	      36 allocs/op
 PASS
-ok  	github.com/aggronmagi/benchpb/gogofaster	27.331s
+ok  	github.com/aggronmagi/benchpb/gogofaster	32.544s
 ```
 
+## 定制
+### 自定义结构实现 protobuf 序列化能力. 
+填充 gengo/GenerateStruct ,然后调用以下函数来生成. 需要参照现有代码,处理import包问题.
+``` go
+func GenExec(data *GenerateStruct) (_ []byte, err error)
+```
+### 调整生成代码. 
+修改 gengo/gen_template.go 中的模板,调整生成代码. 
+### 添加自定义生成. 
+参照 genparse/gen_zap.go 
 ## protobuf-wire 记录
 
 参照 https://protobuf.dev/programming-guides/encoding/
