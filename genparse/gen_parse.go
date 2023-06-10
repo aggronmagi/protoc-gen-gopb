@@ -22,7 +22,7 @@ var (
 
 // 版本信息
 var (
-	Version = "0.0.4"
+	Version = "0.0.5"
 )
 
 func ParseEnum(t *gengo.GenerateStruct, g *protogen.GeneratedFile, f *protogen.File, e *protogen.Enum) (err error) {
