@@ -15,14 +15,14 @@ import (
 
 // 外部配置
 var (
-	Getter  bool
+	Getter  bool   = true
 	WirePkg string = "google.golang.org/protobuf/encoding/protowire"
 	Zap     bool   = true
 )
 
 // 版本信息
 var (
-	Version = "0.0.3"
+	Version = "0.0.4"
 )
 
 func ParseEnum(t *gengo.GenerateStruct, g *protogen.GeneratedFile, f *protogen.File, e *protogen.Enum) (err error) {
