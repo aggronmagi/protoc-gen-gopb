@@ -48,7 +48,7 @@ func (x *{{.TypeName}}) Reset() {
 
 
 {{ if .GenGetter }} {{ range $i,$field := .Fields }}
-{{ $field.LeadingComments }} func (x *{{ .TypeName }}) Get{{ $field.GoName}}() {{$field.TypeName}} {
+{{ $field.LeadingComments }} func (x *{{ $msg.TypeName }}) Get{{ $field.GoName}}() {{$field.TypeName}} {
 	{{ if $field.GetNilCheck }} if x != nil {{ else }} if x != nil && x.{{ $field.GoName }} != nil {{end}} {
 		return x.{{ $field.GoName }}
 	}
